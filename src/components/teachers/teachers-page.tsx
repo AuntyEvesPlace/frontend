@@ -57,9 +57,14 @@ export function TeachersPage() {
   };
 
   const deactivate = async (id: string) => {
-    await api(`/api/v1/teachers/${id}`, { method: "DELETE" });
-    setConfirmId(null);
-    await load();
+    setError("");
+    try {
+      await api(`/api/v1/teachers/${id}`, { method: "DELETE" });
+      setConfirmId(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to remove teacher");
+    }
   };
 
   return (
@@ -74,6 +79,12 @@ export function TeachersPage() {
           </Button>
         }
       />
+
+      {error && !open && !confirmId && (
+        <p className="rounded-md border border-red-200 bg-absent px-3 py-2 text-sm text-dark-red">
+          {error}
+        </p>
+      )}
 
       {loading ? (
         <div className="space-y-2">
@@ -147,23 +158,26 @@ export function TeachersPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(confirmId)} onOpenChange={() => setConfirmId(null)}>
+      <Dialog open={Boolean(confirmId)} onOpenChange={() => { setConfirmId(null); setError(""); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove teacher?</DialogTitle>
             <DialogDescription>They won&apos;t be able to sign in anymore.</DialogDescription>
           </DialogHeader>
-          <div className="flex gap-2">
-            <Button variant="secondary" className="flex-1" onClick={() => setConfirmId(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              className="flex-1"
-              onClick={() => confirmId && deactivate(confirmId)}
-            >
-              Remove
-            </Button>
+          <div className="space-y-3">
+            {error && <p className="text-sm text-dark-red">{error}</p>}
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={() => setConfirmId(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => confirmId && deactivate(confirmId)}
+              >
+                Remove
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
