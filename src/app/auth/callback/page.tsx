@@ -1,19 +1,29 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { setTokens } from "@/lib/auth";
 import { useAuth } from "@/components/providers/auth-provider";
 
+function readTokensFromUrl(): { access: string | null; refresh: string | null } {
+  const search = new URLSearchParams(window.location.search);
+  return {
+    access: search.get("access_token"),
+    refresh: search.get("refresh_token"),
+  };
+}
+
 function CallbackHandler() {
-  const params = useSearchParams();
   const router = useRouter();
   const { refreshUser } = useAuth();
   const [error, setError] = useState("");
+  const handled = useRef(false);
 
   useEffect(() => {
-    const access = params.get("access_token");
-    const refresh = params.get("refresh_token");
+    if (handled.current) return;
+    handled.current = true;
+
+    const { access, refresh } = readTokensFromUrl();
 
     if (!access || !refresh) {
       setError("Missing authentication tokens. Try signing in again.");
@@ -21,13 +31,15 @@ function CallbackHandler() {
     }
 
     setTokens(access, refresh);
-    // Remove tokens from URL immediately
     window.history.replaceState({}, "", "/auth/callback");
 
     refreshUser()
-      .then(() => router.replace("/attendance"))
+      .then((ok) => {
+        if (ok) router.replace("/attendance");
+        else setError("Could not verify your session. The server may still be waking up — try again.");
+      })
       .catch(() => setError("Could not verify your session."));
-  }, [params, router, refreshUser]);
+  }, [router, refreshUser]);
 
   if (error) {
     return (

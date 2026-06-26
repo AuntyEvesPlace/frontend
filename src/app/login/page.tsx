@@ -4,24 +4,9 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Logo } from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl, hasTokens } from "@/lib/auth";
-
-function LogoMark({ large }: { large?: boolean }) {
-  return (
-    <div
-      className={
-        large
-          ? "mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-maroon ring-4 ring-red-100"
-          : "flex h-9 w-9 items-center justify-center rounded-md bg-maroon"
-      }
-    >
-      <span className={`font-serif font-bold text-white ${large ? "text-xl" : "text-sm"}`}>
-        AE
-      </span>
-    </div>
-  );
-}
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
@@ -41,7 +26,7 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mx-auto w-full max-w-sm"
         >
-          <LogoMark large />
+          <Logo size="lg" className="mx-auto mb-6" />
           <h1 className="text-center text-2xl font-semibold tracking-tight text-maroon">
             Aunty Eve&apos;s Place
           </h1>

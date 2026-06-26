@@ -11,6 +11,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Aunty Eve's Place",
   description: "Daycare attendance for Aunty Eve's Place",
+  icons: {
+    icon: "/logo-nav.png",
+    apple: "/logo.png",
+  },
 };
 
 export const viewport: Viewport = {

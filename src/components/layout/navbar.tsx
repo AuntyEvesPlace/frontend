@@ -6,6 +6,7 @@ import { LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Logo } from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -15,14 +16,6 @@ const navItems: { href: string; label: string; adminOnly?: boolean }[] = [
   { href: "/teachers", label: "Teachers", adminOnly: true },
   { href: "/logs", label: "Logs", adminOnly: true },
 ];
-
-function LogoMark() {
-  return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/15 ring-1 ring-white/25">
-      <span className="font-serif text-sm font-bold tracking-tight text-white">AE</span>
-    </div>
-  );
-}
 
 export function Navbar() {
   const pathname = usePathname();
@@ -37,7 +30,7 @@ export function Navbar() {
     <header className="sticky top-0 z-40 border-b border-dark-red/80 bg-maroon text-white">
       <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link href="/attendance" className="flex min-w-0 items-center gap-3">
-          <LogoMark />
+          <Logo />
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-semibold">Aunty Eve&apos;s Place</p>
             <p className="truncate text-[11px] text-white/70">Attendance</p>

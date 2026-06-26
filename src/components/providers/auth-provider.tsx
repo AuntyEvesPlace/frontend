@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { api } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import { clearTokens, hasTokens } from "@/lib/auth";
 import type { Teacher } from "@/lib/types";
 
@@ -16,7 +16,7 @@ interface AuthContextValue {
   user: Teacher | null;
   loading: boolean;
   isAdmin: boolean;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
@@ -26,18 +26,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async (): Promise<boolean> => {
     if (!hasTokens()) {
       setUser(null);
       setLoading(false);
-      return;
+      return false;
     }
     try {
       const me = await api<Teacher>("/api/v1/auth/me");
       setUser(me);
-    } catch {
+      return true;
+    } catch (e) {
       setUser(null);
-      clearTokens();
+      if (e instanceof ApiRequestError && e.status === 401) {
+        clearTokens();
+      }
+      return false;
     } finally {
       setLoading(false);
     }
