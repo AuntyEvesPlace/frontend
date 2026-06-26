@@ -201,7 +201,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
               <Input
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => setDate(e.target.value || todayIso())}
                 className="h-11 w-full pl-9"
               />
             </div>
