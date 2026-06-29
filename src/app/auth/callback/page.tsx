@@ -62,7 +62,7 @@ function CallbackHandler() {
 
 export default function AuthCallbackPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fafaf9] px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-surface px-4">
       <Suspense
         fallback={
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-dark-red border-t-transparent" />

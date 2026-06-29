@@ -5,6 +5,8 @@ import { Mail, Plus, UserMinus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorBanner } from "@/components/ui/error-banner";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { api } from "@/lib/api";
 import type { Teacher } from "@/lib/types";
 
@@ -70,8 +73,8 @@ export function TeachersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Staff"
         title="Teachers"
+        description="Invite staff by email. They can sign in with Google or Microsoft."
         action={
           <Button onClick={() => setOpen(true)} size="sm">
             <Plus className="h-4 w-4" />
@@ -80,18 +83,21 @@ export function TeachersPage() {
         }
       />
 
-      {error && !open && !confirmId && (
-        <p className="rounded-md border border-red-200 bg-absent px-3 py-2 text-sm text-dark-red">
-          {error}
-        </p>
-      )}
+      {error && !open && !confirmId ? <ErrorBanner message={error} /> : null}
 
       {loading ? (
-        <div className="space-y-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-lg bg-stone-100" />
-          ))}
-        </div>
+        <ListSkeleton count={2} itemClassName="h-20" />
+      ) : teachers.length === 0 ? (
+        <EmptyState
+          title="No teachers invited"
+          description="Add staff emails so they can sign in and mark attendance."
+          action={
+            <Button onClick={() => setOpen(true)} size="sm">
+              <Plus className="h-4 w-4" />
+              Invite teacher
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-2">
           {teachers.map((teacher) => (
@@ -117,6 +123,7 @@ export function TeachersPage() {
                     variant="ghost"
                     size="icon"
                     className="shrink-0"
+                    aria-label={`Remove ${teacher.name}`}
                     onClick={() => setConfirmId(teacher.id)}
                   >
                     <UserMinus className="h-4 w-4 text-dark-red" />
@@ -133,7 +140,7 @@ export function TeachersPage() {
           <DialogHeader>
             <DialogTitle>Invite teacher</DialogTitle>
             <DialogDescription>
-              They can sign in with Google once their email is on this list.
+              They can sign in with Google or Microsoft once their email is on this list.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

@@ -1,38 +1,56 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, UserRound } from "lucide-react";
+import { Sunrise, Sunset, UserRound } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { api } from "@/lib/api";
-import type { AttendanceLog } from "@/lib/types";
+import { statusLogLabel } from "@/lib/attendance-status";
+import type { AttendanceLog, AttendanceStatus } from "@/lib/types";
 import { cn, formatDate, formatTime } from "@/lib/utils";
 
-function LogIcon({ status }: { status: AttendanceLog["status"] }) {
-  const isPresent = status === "present";
+function LogIcon({ status }: { status: AttendanceStatus }) {
+  if (status === "present_am") {
+    return (
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-maroon/10 text-maroon">
+        <Sunrise className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
+  if (status === "present_pm") {
+    return (
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-present-pm/15 text-present-pm">
+        <Sunset className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
   return (
-    <div
-      className={cn(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-        isPresent ? "bg-maroon/10 text-maroon" : "bg-red-50 text-stone-400",
-      )}
-    >
-      {isPresent ? <Check className="h-3.5 w-3.5" /> : <UserRound className="h-3.5 w-3.5" />}
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-50 text-stone-400">
+      <UserRound className="h-3.5 w-3.5" />
     </div>
   );
 }
 
 function LogMessage({ log }: { log: AttendanceLog }) {
+  const label = statusLogLabel(log.status);
   return (
     <p className="min-w-0 flex-1 text-sm leading-snug text-stone-800">
       <span className="font-semibold text-maroon">{log.teacher_name}</span>
       {" marked "}
       {log.student_name}
       {" as "}
-      <span className={log.status === "present" ? "text-dark-red" : "text-muted"}>
-        {log.status}
+      <span
+        className={cn(
+          log.status === "absent" ? "text-muted" : "text-dark-red",
+          log.status === "present_pm" && "text-present-pm",
+        )}
+      >
+        {label}
       </span>
     </p>
   );
@@ -77,39 +95,61 @@ export function LogsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Audit" title="Attendance logs" />
+      <PageHeader
+        title="Attendance logs"
+        description="Who marked whom, and when."
+      />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="from-date">From</Label>
-          <Input
-            id="from-date"
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="h-11"
-          />
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="from-date">From</Label>
+            <Input
+              id="from-date"
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="h-11"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="to-date">To</Label>
+            <Input
+              id="to-date"
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="h-11"
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="to-date">To</Label>
-          <Input
-            id="to-date"
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="h-11"
-          />
-        </div>
+        {(from || to) && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-dark-red"
+            onClick={() => {
+              setFrom("");
+              setTo("");
+            }}
+          >
+            Clear dates
+          </Button>
+        )}
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-28 animate-pulse rounded-lg bg-stone-100" />
-          ))}
-        </div>
+        <ListSkeleton count={2} itemClassName="h-28" />
       ) : byDay.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted">No logs for this range.</p>
+        <EmptyState
+          title="No logs yet"
+          description={
+            from || to
+              ? "Nothing in this date range. Try clearing the filters."
+              : "Activity will show up here when attendance is marked."
+          }
+        />
       ) : (
         <div className="max-h-[calc(100vh-16rem)] space-y-4 overflow-y-auto pb-2">
           {byDay.map(([day, entries]) => (

@@ -1,5 +1,5 @@
 export type TeacherRole = "admin" | "teacher";
-export type AttendanceStatus = "present" | "absent";
+export type AttendanceStatus = "absent" | "present_am" | "present_pm";
 
 export interface Teacher {
   id: string;

@@ -2,6 +2,7 @@
 
 @theme inline {
   --color-background: #ffffff;
+  --color-surface: #fafaf9;
   --color-foreground: #1c1917;
   --color-muted: #78716c;
   --color-border: #e7e5e4;
@@ -12,7 +13,10 @@
   --color-maroon: #7f1d1d;
   --color-absent: #fef2f2;
   --color-present-border: #7f1d1d;
-  --font-sans: var(--font-inter);
+  --color-present-pm: #d97706;
+  --color-present-pm-muted: #fffbeb;
+  --font-sans: var(--font-dm-sans);
+  --radius-lg: 0.75rem;
 }
 
 @layer base {
@@ -21,6 +25,16 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-surface text-foreground antialiased;
+  }
+
+  ::selection {
+    @apply bg-maroon/15 text-maroon;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 }

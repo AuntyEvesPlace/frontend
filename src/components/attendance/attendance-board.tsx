@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Filter, Search } from "lucide-react";
+import { CalendarDays, Filter, Search, Sunrise, Sunset, X } from "lucide-react";
 import { StudentCard } from "@/components/attendance/student-card";
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorBanner } from "@/components/ui/error-banner";
 import { Input } from "@/components/ui/input";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
 import {
   Select,
   SelectContent,
@@ -72,13 +76,22 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
     return keys.map((key) => [key, map.get(key)!] as const);
   }, [filtered, classOptions]);
 
-  const presentCount = useMemo(() => {
-    if (!data) return { present: 0, total: 0 };
-    const present = data.students.filter((s) => s.status === "present").length;
-    return { present, total: data.students.length };
+  const counts = useMemo(() => {
+    if (!data) return { am: 0, pm: 0, present: 0, total: 0, absent: 0 };
+    const total = data.students.length;
+    const am = data.students.filter((s) => s.status === "present_am").length;
+    const pm = data.students.filter((s) => s.status === "present_pm").length;
+    return { am, pm, present: am + pm, total, absent: total - am - pm };
   }, [data]);
 
   const isToday = date === todayIso();
+  const hasFilters = search.length > 0 || classFilter !== "all";
+  const filteredTotal = data?.students.length ?? 0;
+
+  const clearFilters = () => {
+    setSearch("");
+    setClassFilter("all");
+  };
 
   const handleRemoteSync = useCallback((remote: AttendanceDay) => {
     setData((prev) => {
@@ -90,16 +103,15 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
 
   useAttendancePoll(date, isToday && !loading, handleRemoteSync);
 
-  const toggle = async (studentId: string) => {
+  const setStatus = async (studentId: string, next: AttendanceStatus) => {
     if (!data || pendingId) return;
     const student = data.students.find((s) => s.student_id === studentId);
-    if (!student) return;
+    if (!student || student.status === next) return;
 
-    const next: AttendanceStatus = student.status === "present" ? "absent" : "present";
     setPendingId(studentId);
     setError("");
 
-    const snapshot = data.students.find((s) => s.student_id === studentId)!;
+    const snapshot = student;
     setData({
       ...data,
       students: data.students.map((s) =>
@@ -142,20 +154,65 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Daily roll call"
-        title={isAdmin ? formatDate(date) : `Today — ${formatDate(date)}`}
+        title={isAdmin ? formatDate(date) : `Today, ${formatDate(date)}`}
+        description={
+          isAdmin && !isToday
+            ? "Viewing a past day. Changes only apply to this date."
+            : undefined
+        }
       />
 
       {!loading && data && data.students.length > 0 && (
-        <div className="flex items-baseline gap-2 rounded-lg border border-red-100 bg-white px-4 py-3">
-          <span className="text-3xl font-semibold tabular-nums text-maroon">
-            {presentCount.present}
-          </span>
-          <div className="text-sm text-muted">
-            <span className="text-stone-700">present</span>
-            {isToday ? " today" : ""}
-            <span className="text-stone-400"> · </span>
-            <span>{presentCount.total} total</span>
+        <div className="rounded-xl border border-red-100 bg-white p-4 shadow-sm">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-muted">Present</p>
+              <p className="mt-0.5 text-3xl font-semibold tabular-nums text-maroon">
+                {counts.present}
+                <span className="text-lg font-normal text-stone-400">
+                  {" "}
+                  / {counts.total}
+                </span>
+              </p>
+            </div>
+            {isToday ? (
+              <span className="rounded-full bg-absent px-2.5 py-1 text-xs font-medium text-dark-red">
+                Today
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <Sunrise className="h-3.5 w-3.5 text-maroon" aria-hidden />
+              <span className="tabular-nums text-stone-700">{counts.am}</span>
+              <span>before 12</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Sunset className="h-3.5 w-3.5 text-present-pm" aria-hidden />
+              <span className="tabular-nums text-stone-700">{counts.pm}</span>
+              <span>after 12</span>
+            </span>
+          </div>
+          <div
+            className="mt-3 flex h-2 overflow-hidden rounded-full bg-stone-200"
+            role="progressbar"
+            aria-valuenow={counts.present}
+            aria-valuemin={0}
+            aria-valuemax={counts.total}
+            aria-label={`${counts.am} before 12, ${counts.pm} after 12, ${counts.absent} absent out of ${counts.total}`}
+          >
+            {counts.total > 0 ? (
+              <>
+                <div
+                  className="h-full bg-maroon transition-[width] duration-300"
+                  style={{ width: `${(counts.am / counts.total) * 100}%` }}
+                />
+                <div
+                  className="h-full bg-present-pm transition-[width] duration-300"
+                  style={{ width: `${(counts.pm / counts.total) * 100}%` }}
+                />
+              </>
+            ) : null}
           </div>
         </div>
       )}
@@ -168,6 +225,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-11 pl-9"
+            aria-label="Search students by name"
           />
         </div>
 
@@ -198,31 +256,67 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
           {isAdmin && (
             <div className="relative min-w-0">
               <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value || todayIso())}
-                className="h-11 w-full pl-9"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value || todayIso())}
+                  className="h-11 min-w-0 flex-1 pl-9"
+                  aria-label="Attendance date"
+                />
+                {!isToday ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-11 shrink-0 px-3"
+                    onClick={() => setDate(todayIso())}
+                  >
+                    Today
+                  </Button>
+                ) : null}
+              </div>
             </div>
           )}
         </div>
+
+        {hasFilters ? (
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-sm text-muted">
+            <span>
+              Showing {filtered.length} of {filteredTotal}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-dark-red"
+              onClick={clearFilters}
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      {error && (
-        <p className="rounded-md border border-red-200 bg-absent px-3 py-2 text-sm text-dark-red">
-          {error}
-        </p>
-      )}
+      {error ? <ErrorBanner message={error} /> : null}
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-[4.25rem] animate-pulse rounded-lg bg-stone-100" />
-          ))}
-        </div>
+        <ListSkeleton count={4} itemClassName="h-[4.75rem]" />
+      ) : !data || data.students.length === 0 ? (
+        <EmptyState
+          title="No students yet"
+          description="Add children in the Students page before marking attendance."
+        />
       ) : grouped.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted">No students match your filters.</p>
+        <EmptyState
+          title="No matches"
+          description="Try a different name or class filter."
+          action={
+            <Button variant="secondary" size="sm" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-7">
           {grouped.map(([className, students]) => (
@@ -238,7 +332,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
                   <StudentCard
                     key={student.student_id}
                     student={student}
-                    onToggle={toggle}
+                    onStatusChange={setStatus}
                     pending={pendingId === student.student_id}
                   />
                 ))}

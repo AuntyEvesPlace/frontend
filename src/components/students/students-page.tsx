@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClassSelect } from "@/components/ui/class-select";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { api } from "@/lib/api";
 import { useClasses } from "@/lib/classes";
 import type { Student } from "@/lib/types";
@@ -96,8 +98,8 @@ export function StudentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Roster"
         title="Students"
+        description="Manage the roster and class assignments."
         action={
           <Button onClick={openCreate} size="sm" disabled={classes.length === 0}>
             <Plus className="h-4 w-4" />
@@ -107,13 +109,18 @@ export function StudentsPage() {
       />
 
       {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-stone-100" />
-          ))}
-        </div>
+        <ListSkeleton count={3} />
       ) : students.length === 0 ? (
-        <p className="text-sm text-muted">No students yet. Add your first child.</p>
+        <EmptyState
+          title="No students yet"
+          description="Add your first child to start tracking attendance."
+          action={
+            <Button onClick={openCreate} size="sm" disabled={classes.length === 0}>
+              <Plus className="h-4 w-4" />
+              Add student
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-2">
           {students.map((student) => (
@@ -124,10 +131,20 @@ export function StudentsPage() {
                   <p className="text-xs text-muted">{student.class_name}</p>
                 </div>
                 <div className="flex shrink-0 gap-0.5">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(student)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Edit ${student.name}`}
+                    onClick={() => openEdit(student)}
+                  >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setConfirmId(student.id)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove ${student.name}`}
+                    onClick={() => setConfirmId(student.id)}
+                  >
                     <UserMinus className="h-4 w-4 text-dark-red" />
                   </Button>
                 </div>

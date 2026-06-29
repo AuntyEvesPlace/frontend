@@ -25,7 +25,9 @@ export function hasTokens(): boolean {
   return Boolean(getAccessToken() && getRefreshToken());
 }
 
-export function getLoginUrl(): string {
+export type LoginProvider = "google" | "microsoft";
+
+export function getLoginUrl(provider: LoginProvider): string {
   const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-  return `${base}/api/v1/auth/google/login`;
+  return `${base}/api/v1/auth/${provider}/login`;
 }
