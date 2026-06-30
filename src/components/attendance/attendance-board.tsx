@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Filter, Search, Sunrise, Sunset, X } from "lucide-react";
+import { CalendarDays, Filter, Search, X } from "lucide-react";
 import { StudentCard } from "@/components/attendance/student-card";
+import { AttendanceSummary } from "@/components/attendance/attendance-summary";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,6 +20,7 @@ import {
 import { useAttendancePoll } from "@/hooks/use-attendance-poll";
 import { api } from "@/lib/api";
 import { attendanceDayChanged, mergeAttendance } from "@/lib/attendance-merge";
+import { countAttendance, countByClass } from "@/lib/attendance-counts";
 import { sortByClassOrder, useClasses } from "@/lib/classes";
 import type { AttendanceDay, AttendanceStatus, AttendanceStudent } from "@/lib/types";
 import { formatDate, todayIso } from "@/lib/utils";
@@ -76,13 +78,20 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
     return keys.map((key) => [key, map.get(key)!] as const);
   }, [filtered, classOptions]);
 
-  const counts = useMemo(() => {
-    if (!data) return { am: 0, pm: 0, present: 0, total: 0, absent: 0 };
-    const total = data.students.length;
-    const am = data.students.filter((s) => s.status === "present_am").length;
-    const pm = data.students.filter((s) => s.status === "present_pm").length;
-    return { am, pm, present: am + pm, total, absent: total - am - pm };
-  }, [data]);
+  const totals = useMemo(
+    () => countAttendance(data?.students ?? []),
+    [data],
+  );
+
+  const byClass = useMemo(
+    () => countByClass(data?.students ?? [], classOptions),
+    [data, classOptions],
+  );
+
+  const countsByClass = useMemo(
+    () => new Map(byClass.map((row) => [row.className, row.counts])),
+    [byClass],
+  );
 
   const isToday = date === todayIso();
   const hasFilters = search.length > 0 || classFilter !== "all";
@@ -162,60 +171,9 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
         }
       />
 
-      {!loading && data && data.students.length > 0 && (
-        <div className="rounded-xl border border-red-100 bg-white p-4 shadow-sm">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium text-muted">Present</p>
-              <p className="mt-0.5 text-3xl font-semibold tabular-nums text-maroon">
-                {counts.present}
-                <span className="text-lg font-normal text-stone-400">
-                  {" "}
-                  / {counts.total}
-                </span>
-              </p>
-            </div>
-            {isToday ? (
-              <span className="rounded-full bg-absent px-2.5 py-1 text-xs font-medium text-dark-red">
-                Today
-              </span>
-            ) : null}
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <Sunrise className="h-3.5 w-3.5 text-maroon" aria-hidden />
-              <span className="tabular-nums text-stone-700">{counts.am}</span>
-              <span>before 12</span>
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Sunset className="h-3.5 w-3.5 text-present-pm" aria-hidden />
-              <span className="tabular-nums text-stone-700">{counts.pm}</span>
-              <span>after 12</span>
-            </span>
-          </div>
-          <div
-            className="mt-3 flex h-2 overflow-hidden rounded-full bg-stone-200"
-            role="progressbar"
-            aria-valuenow={counts.present}
-            aria-valuemin={0}
-            aria-valuemax={counts.total}
-            aria-label={`${counts.am} before 12, ${counts.pm} after 12, ${counts.absent} absent out of ${counts.total}`}
-          >
-            {counts.total > 0 ? (
-              <>
-                <div
-                  className="h-full bg-maroon transition-[width] duration-300"
-                  style={{ width: `${(counts.am / counts.total) * 100}%` }}
-                />
-                <div
-                  className="h-full bg-present-pm transition-[width] duration-300"
-                  style={{ width: `${(counts.pm / counts.total) * 100}%` }}
-                />
-              </>
-            ) : null}
-          </div>
-        </div>
-      )}
+      {!loading && data && data.students.length > 0 ? (
+        <AttendanceSummary totals={totals} byClass={byClass} isToday={isToday} />
+      ) : null}
 
       <div className="space-y-3">
         <div className="relative">
@@ -301,7 +259,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
       {error ? <ErrorBanner message={error} /> : null}
 
       {loading ? (
-        <ListSkeleton count={4} itemClassName="h-[4.75rem]" />
+        <ListSkeleton count={4} itemClassName="h-36" />
       ) : !data || data.students.length === 0 ? (
         <EmptyState
           title="No students yet"
@@ -319,15 +277,28 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
         />
       ) : (
         <div className="space-y-7">
-          {grouped.map(([className, students]) => (
+          {grouped.map(([className, students]) => {
+            const classCounts = countsByClass.get(className);
+            return (
             <section key={className}>
-              <div className="mb-3 flex items-center justify-between gap-2 border-b border-red-100 pb-2">
-                <h2 className="text-sm font-semibold text-dark-red">{className}</h2>
-                <span className="shrink-0 text-xs text-muted">
-                  {students.length} {students.length === 1 ? "child" : "children"}
-                </span>
+              <div className="mb-3 space-y-1 border-b border-red-100 pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-base font-semibold text-dark-red sm:text-lg">{className}</h2>
+                  <span className="shrink-0 text-sm text-muted">
+                    {students.length} {students.length === 1 ? "child" : "children"}
+                  </span>
+                </div>
+                {classCounts ? (
+                  <p className="text-sm tabular-nums text-stone-600">
+                    <span className="font-semibold text-maroon">{classCounts.present}</span> present
+                    {" · "}
+                    <span className="font-medium text-maroon">{classCounts.am}</span> before 12
+                    {" · "}
+                    <span className="font-medium text-present-pm">{classCounts.pm}</span> after 12
+                  </p>
+                ) : null}
               </div>
-              <div className="grid gap-2.5">
+              <div className="grid gap-3">
                 {students.map((student) => (
                   <StudentCard
                     key={student.student_id}
@@ -338,7 +309,8 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
                 ))}
               </div>
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

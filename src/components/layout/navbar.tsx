@@ -28,7 +28,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-dark-red/80 bg-maroon text-white">
-      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link href="/attendance" className="flex min-w-0 items-center gap-3">
           <Logo />
           <div className="min-w-0 leading-tight">
