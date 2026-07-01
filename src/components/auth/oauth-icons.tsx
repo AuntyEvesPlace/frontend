@@ -31,3 +31,14 @@ export function MicrosoftIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function YahooIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="#6001D2"
+        d="M11.964 0C5.361 0 0 5.373 0 12s5.361 12 11.964 12C18.567 24 24 18.627 24 12S18.567 0 11.964 0zm3.9 6.002h-2.688l-1.824 5.088-1.824-5.088H8.864l4.384 11.996h2.208l4.384-11.996zm7.056 0h-2.4v11.996h2.4V6.002z"
+      />
+    </svg>
+  );
+}

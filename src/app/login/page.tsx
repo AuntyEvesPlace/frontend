@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { GoogleIcon, MicrosoftIcon } from "@/components/auth/oauth-icons";
+import { GoogleIcon, MicrosoftIcon, YahooIcon } from "@/components/auth/oauth-icons";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Logo } from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,15 @@ export default function LoginPage() {
             >
               <MicrosoftIcon className="h-5 w-5 shrink-0" />
               {redirecting === "microsoft" ? "Redirecting…" : "Continue with Microsoft"}
+            </Button>
+            <Button
+              variant="secondary"
+              className={oauthButtonClass}
+              disabled={Boolean(redirecting)}
+              onClick={() => startLogin("yahoo")}
+            >
+              <YahooIcon className="h-5 w-5 shrink-0" />
+              {redirecting === "yahoo" ? "Redirecting…" : "Continue with Yahoo"}
             </Button>
             <p className="pt-1 text-center text-xs leading-relaxed text-muted">
               Only invited staff can sign in. Ask the admin to add your email first.
