@@ -25,6 +25,8 @@ export function attendanceStudentChanged(
 ): boolean {
   return (
     a.status !== b.status ||
+    a.needs_packed_lunch !== b.needs_packed_lunch ||
+    a.absent_to_school !== b.absent_to_school ||
     a.marked_by?.id !== b.marked_by?.id ||
     a.marked_at !== b.marked_at
   );

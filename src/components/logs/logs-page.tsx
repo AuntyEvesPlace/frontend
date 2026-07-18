@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Sunrise, Sunset, UserRound } from "lucide-react";
+import { Clock3, Clock9, School, UserRound, Utensils } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,21 +11,37 @@ import { Label } from "@/components/ui/label";
 import { ListSkeleton } from "@/components/ui/list-skeleton";
 import { api } from "@/lib/api";
 import { statusLogLabel } from "@/lib/attendance-status";
-import type { AttendanceLog, AttendanceStatus } from "@/lib/types";
+import type { AttendanceLog, AttendanceLogEvent, AttendanceStatus } from "@/lib/types";
 import { cn, formatDate, formatTime } from "@/lib/utils";
 
-function LogIcon({ status }: { status: AttendanceStatus }) {
+function LogIcon({ log }: { log: AttendanceLog }) {
+  const eventType: AttendanceLogEvent = log.event_type ?? "status";
+  if (eventType === "needs_packed_lunch") {
+    return (
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-maroon/10 text-maroon">
+        <Utensils className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
+  if (eventType === "absent_to_school") {
+    return (
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-stone-200 text-stone-600">
+        <School className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
+  const status = log.status;
   if (status === "present_am") {
     return (
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-maroon/10 text-maroon">
-        <Sunrise className="h-3.5 w-3.5" />
+        <Clock9 className="h-3.5 w-3.5" />
       </div>
     );
   }
   if (status === "present_pm") {
     return (
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-present-pm/15 text-present-pm">
-        <Sunset className="h-3.5 w-3.5" />
+        <Clock3 className="h-3.5 w-3.5" />
       </div>
     );
   }
@@ -37,7 +53,25 @@ function LogIcon({ status }: { status: AttendanceStatus }) {
 }
 
 function LogMessage({ log }: { log: AttendanceLog }) {
-  const label = statusLogLabel(log.status);
+  const eventType: AttendanceLogEvent = log.event_type ?? "status";
+  if (eventType !== "status") {
+    return (
+      <p className="min-w-0 flex-1 text-sm leading-snug text-stone-800">
+        <span className="font-semibold text-maroon">{log.teacher_name}</span>
+        {eventType === "needs_packed_lunch"
+          ? log.flag_value
+            ? " set packed lunch for "
+            : " cleared packed lunch for "
+          : log.flag_value
+            ? " marked absent to school for "
+            : " cleared absent to school for "}
+        {log.student_name}
+      </p>
+    );
+  }
+
+  const status = (log.status ?? "absent") as AttendanceStatus;
+  const label = statusLogLabel(status);
   return (
     <p className="min-w-0 flex-1 text-sm leading-snug text-stone-800">
       <span className="font-semibold text-maroon">{log.teacher_name}</span>
@@ -46,8 +80,8 @@ function LogMessage({ log }: { log: AttendanceLog }) {
       {" as "}
       <span
         className={cn(
-          log.status === "absent" ? "text-muted" : "text-dark-red",
-          log.status === "present_pm" && "text-present-pm",
+          status === "absent" ? "text-muted" : "text-dark-red",
+          status === "present_pm" && "text-present-pm",
         )}
       >
         {label}
@@ -183,7 +217,7 @@ export function LogsPage() {
                       </div>
 
                       <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-3 sm:gap-3">
-                        <LogIcon status={log.status} />
+                        <LogIcon log={log} />
                         <time
                           dateTime={log.created_at}
                           className="w-12 shrink-0 text-[11px] tabular-nums text-muted sm:w-14"

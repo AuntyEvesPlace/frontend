@@ -25,17 +25,25 @@ export interface MarkedBy {
   name: string;
 }
 
+export type AttendanceLogEvent =
+  | "status"
+  | "needs_packed_lunch"
+  | "absent_to_school";
+
 export interface AttendanceStudent {
   student_id: string;
   name: string;
   class_name: string;
   status: AttendanceStatus;
+  needs_packed_lunch: boolean;
+  absent_to_school: boolean;
   marked_by: MarkedBy | null;
   marked_at: string | null;
 }
 
 export interface AttendanceDay {
   date: string;
+  is_holiday: boolean;
   students: AttendanceStudent[];
 }
 
@@ -46,7 +54,9 @@ export interface AttendanceLog {
   student_name: string;
   teacher_id: string;
   teacher_name: string;
-  status: AttendanceStatus;
+  event_type: AttendanceLogEvent;
+  status: AttendanceStatus | null;
+  flag_value: boolean | null;
   created_at: string;
   message: string;
 }

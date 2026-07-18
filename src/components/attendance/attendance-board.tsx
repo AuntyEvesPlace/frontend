@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Filter, Search, X } from "lucide-react";
 import { StudentCard } from "@/components/attendance/student-card";
-import { AttendanceSummary } from "@/components/attendance/attendance-summary";
+import {
+  AttendanceSummary,
+  type CategoryFilter,
+} from "@/components/attendance/attendance-summary";
+import { HolidayControls } from "@/components/attendance/holiday-controls";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -23,7 +27,14 @@ import { attendanceDayChanged, mergeAttendance } from "@/lib/attendance-merge";
 import { countAttendance, countByClass } from "@/lib/attendance-counts";
 import { sortByClassOrder, useClasses } from "@/lib/classes";
 import type { AttendanceDay, AttendanceStatus, AttendanceStudent } from "@/lib/types";
-import { formatDate, todayIso } from "@/lib/utils";
+import { addDaysIso, formatDate, todayIso } from "@/lib/utils";
+
+const TEACHER_FLAG_AHEAD_DAYS = 30;
+
+const CATEGORY_LABELS: Record<Exclude<CategoryFilter, null>, string> = {
+  packed_lunch: "Packed lunch",
+  absent_to_school: "No school",
+};
 
 interface AttendanceBoardProps {
   isAdmin: boolean;
@@ -36,10 +47,18 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const pendingIdRef = useRef(pendingId);
   pendingIdRef.current = pendingId;
+
+  const today = todayIso();
+  const maxTeacherDate = addDaysIso(today, TEACHER_FLAG_AHEAD_DAYS);
+  const isToday = date === today;
+  const isHoliday = Boolean(data?.is_holiday);
+  const attendanceEditable = isHoliday && (isAdmin || isToday);
+  const showAttendance = isHoliday;
 
   const load = useCallback(async (targetDate: string) => {
     setLoading(true);
@@ -63,9 +82,15 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
     return data.students.filter((s) => {
       const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
       const matchesClass = classFilter === "all" || s.class_name === classFilter;
-      return matchesSearch && matchesClass;
+      const matchesCategory =
+        categoryFilter === null
+          ? true
+          : categoryFilter === "packed_lunch"
+            ? s.needs_packed_lunch
+            : s.absent_to_school;
+      return matchesSearch && matchesClass && matchesCategory;
     });
-  }, [data, search, classFilter]);
+  }, [data, search, classFilter, categoryFilter]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, AttendanceStudent[]>();
@@ -78,10 +103,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
     return keys.map((key) => [key, map.get(key)!] as const);
   }, [filtered, classOptions]);
 
-  const totals = useMemo(
-    () => countAttendance(data?.students ?? []),
-    [data],
-  );
+  const totals = useMemo(() => countAttendance(data?.students ?? []), [data]);
 
   const byClass = useMemo(
     () => countByClass(data?.students ?? [], classOptions),
@@ -93,14 +115,27 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
     [byClass],
   );
 
-  const isToday = date === todayIso();
-  const hasFilters = search.length > 0 || classFilter !== "all";
+  const hasFilters =
+    search.length > 0 || classFilter !== "all" || categoryFilter !== null;
   const filteredTotal = data?.students.length ?? 0;
 
   const clearFilters = () => {
     setSearch("");
     setClassFilter("all");
+    setCategoryFilter(null);
   };
+
+  const emptyDescription = (() => {
+    if (categoryFilter === "packed_lunch") {
+      return "No children need packed lunch"
+        + (search || classFilter !== "all" ? " for the current search/class." : ".");
+    }
+    if (categoryFilter === "absent_to_school") {
+      return "No children are marked out of school"
+        + (search || classFilter !== "all" ? " for the current search/class." : ".");
+    }
+    return "Try a different name or class filter.";
+  })();
 
   const handleRemoteSync = useCallback((remote: AttendanceDay) => {
     setData((prev) => {
@@ -112,10 +147,23 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
 
   useAttendancePoll(date, isToday && !loading, handleRemoteSync);
 
+  const applyStudentUpdate = (studentId: string, updated: AttendanceStudent) => {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            students: prev.students.map((s) =>
+              s.student_id === studentId ? updated : s,
+            ),
+          }
+        : prev,
+    );
+  };
+
   const setStatus = async (studentId: string, next: AttendanceStatus) => {
-    if (!data || pendingId) return;
+    if (!data || pendingId || !attendanceEditable || !showAttendance) return;
     const student = data.students.find((s) => s.student_id === studentId);
-    if (!student || student.status === next) return;
+    if (!student || student.status === next || student.absent_to_school) return;
 
     setPendingId(studentId);
     setError("");
@@ -133,46 +181,102 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
         method: "PUT",
         body: JSON.stringify({ date, status: next }),
       });
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              students: prev.students.map((s) =>
-                s.student_id === studentId ? updated : s,
-              ),
-            }
-          : prev,
-      );
+      applyStudentUpdate(studentId, updated);
     } catch (e) {
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              students: prev.students.map((s) =>
-                s.student_id === studentId ? snapshot : s,
-              ),
-            }
-          : prev,
-      );
+      applyStudentUpdate(studentId, snapshot);
       setError(e instanceof Error ? e.message : "Failed to update");
     } finally {
       setPendingId(null);
     }
   };
 
+  const setFlag = async (
+    studentId: string,
+    flag: "needs_packed_lunch" | "absent_to_school",
+    value: boolean,
+  ) => {
+    if (!data || pendingId) return;
+    const student = data.students.find((s) => s.student_id === studentId);
+    if (!student) return;
+
+    setPendingId(studentId);
+    setError("");
+
+    const snapshot = student;
+    const optimistic: AttendanceStudent = {
+      ...student,
+      [flag]: value,
+      ...(flag === "absent_to_school" && value
+        ? {
+            status: "absent" as const,
+            needs_packed_lunch: false,
+          }
+        : {}),
+    };
+    applyStudentUpdate(studentId, optimistic);
+
+    try {
+      const updated = await api<AttendanceStudent>(`/api/v1/attendance/${studentId}`, {
+        method: "PUT",
+        body: JSON.stringify({ date, [flag]: value }),
+      });
+      applyStudentUpdate(studentId, updated);
+    } catch (e) {
+      applyStudentUpdate(studentId, snapshot);
+      setError(e instanceof Error ? e.message : "Failed to update");
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const onDateChange = (value: string) => {
+    const next = value || today;
+    if (!isAdmin) {
+      if (next < today || next > maxTeacherDate) return;
+    }
+    setDate(next);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isAdmin ? formatDate(date) : `Today, ${formatDate(date)}`}
+        title={isToday ? `Today, ${formatDate(date)}` : formatDate(date)}
         description={
-          isAdmin && !isToday
-            ? "Viewing a past day. Changes only apply to this date."
-            : undefined
+          !isToday
+            ? isAdmin
+              ? "Viewing another day. Changes only apply to this date."
+              : isHoliday
+                ? "Planning ahead. Set packed lunch or absent to school; mark arrival on the day."
+                : "Planning ahead. Set packed lunch or absent to school."
+            : isHoliday
+              ? "Holiday mode: mark before/after 12 attendance."
+              : "School day: packed lunch and absent to school."
         }
       />
 
+      {(isAdmin || (!loading && data)) && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <HolidayControls
+            date={date}
+            isHoliday={isHoliday}
+            isAdmin={isAdmin}
+            onHolidayChange={(next) => {
+              setData((prev) => (prev ? { ...prev, is_holiday: next } : prev));
+            }}
+            onError={setError}
+          />
+        </div>
+      )}
+
       {!loading && data && data.students.length > 0 ? (
-        <AttendanceSummary totals={totals} byClass={byClass} isToday={isToday} />
+        <AttendanceSummary
+          totals={totals}
+          byClass={byClass}
+          isToday={isToday}
+          isHoliday={isHoliday}
+          categoryFilter={categoryFilter}
+          onCategoryFilterChange={setCategoryFilter}
+        />
       ) : null}
 
       <div className="space-y-3">
@@ -187,13 +291,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
           />
         </div>
 
-        <div
-          className={
-            isAdmin
-              ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
-              : "grid grid-cols-1 gap-3"
-          }
-        >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="relative min-w-0">
             <Filter className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted" />
             <Select value={classFilter} onValueChange={setClassFilter}>
@@ -211,37 +309,50 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
             </Select>
           </div>
 
-          {isAdmin && (
-            <div className="relative min-w-0">
-              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value || todayIso())}
-                  className="h-11 min-w-0 flex-1 pl-9"
-                  aria-label="Attendance date"
-                />
-                {!isToday ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="h-11 shrink-0 px-3"
-                    onClick={() => setDate(todayIso())}
-                  >
-                    Today
-                  </Button>
-                ) : null}
-              </div>
+          <div className="relative min-w-0">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                value={date}
+                min={isAdmin ? undefined : today}
+                max={isAdmin ? undefined : maxTeacherDate}
+                onChange={(e) => onDateChange(e.target.value)}
+                className="h-11 min-w-0 flex-1 pl-9"
+                aria-label="Attendance date"
+              />
+              {!isToday ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-11 shrink-0 px-3"
+                  onClick={() => setDate(today)}
+                >
+                  Today
+                </Button>
+              ) : null}
             </div>
-          )}
+          </div>
         </div>
 
         {hasFilters ? (
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-sm text-muted">
-            <span>
-              Showing {filtered.length} of {filteredTotal}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-sm text-muted">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span>
+                Showing {filtered.length} of {filteredTotal}
+              </span>
+              {categoryFilter ? (
+                <span
+                  className={
+                    categoryFilter === "packed_lunch"
+                      ? "rounded-full bg-maroon/10 px-2.5 py-0.5 text-xs font-semibold text-maroon"
+                      : "rounded-full bg-stone-200 px-2.5 py-0.5 text-xs font-semibold text-stone-700"
+                  }
+                >
+                  {CATEGORY_LABELS[categoryFilter]}
+                </span>
+              ) : null}
+            </div>
             <Button
               type="button"
               variant="ghost"
@@ -268,7 +379,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
       ) : grouped.length === 0 ? (
         <EmptyState
           title="No matches"
-          description="Try a different name or class filter."
+          description={emptyDescription}
           action={
             <Button variant="secondary" size="sm" onClick={clearFilters}>
               Clear filters
@@ -280,35 +391,52 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
           {grouped.map(([className, students]) => {
             const classCounts = countsByClass.get(className);
             return (
-            <section key={className}>
-              <div className="mb-3 space-y-1 border-b border-red-100 pb-2">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-base font-semibold text-dark-red sm:text-lg">{className}</h2>
-                  <span className="shrink-0 text-sm text-muted">
-                    {students.length} {students.length === 1 ? "child" : "children"}
-                  </span>
+              <section key={className}>
+                <div className="mb-3 space-y-1 border-b border-red-100 pb-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-base font-semibold text-dark-red sm:text-lg">
+                      {className}
+                    </h2>
+                    <span className="shrink-0 text-sm text-muted">
+                      {students.length} {students.length === 1 ? "child" : "children"}
+                    </span>
+                  </div>
+                  {classCounts && showAttendance && !categoryFilter ? (
+                    <p className="text-sm tabular-nums text-stone-600">
+                      <span className="font-semibold text-maroon">{classCounts.present}</span>{" "}
+                      present
+                      {" · "}
+                      <span className="font-medium text-maroon">{classCounts.am}</span> before
+                      12
+                      {" · "}
+                      <span className="font-medium text-present-pm">{classCounts.pm}</span>{" "}
+                      after 12
+                      {classCounts.absentToSchool > 0 ? (
+                        <>
+                          {" · "}
+                          <span className="font-medium text-stone-500">
+                            {classCounts.absentToSchool}
+                          </span>{" "}
+                          no school
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                 </div>
-                {classCounts ? (
-                  <p className="text-sm tabular-nums text-stone-600">
-                    <span className="font-semibold text-maroon">{classCounts.present}</span> present
-                    {" · "}
-                    <span className="font-medium text-maroon">{classCounts.am}</span> before 12
-                    {" · "}
-                    <span className="font-medium text-present-pm">{classCounts.pm}</span> after 12
-                  </p>
-                ) : null}
-              </div>
-              <div className="grid gap-3">
-                {students.map((student) => (
-                  <StudentCard
-                    key={student.student_id}
-                    student={student}
-                    onStatusChange={setStatus}
-                    pending={pendingId === student.student_id}
-                  />
-                ))}
-              </div>
-            </section>
+                <div className="grid gap-3">
+                  {students.map((student) => (
+                    <StudentCard
+                      key={student.student_id}
+                      student={student}
+                      onStatusChange={setStatus}
+                      onFlagChange={setFlag}
+                      showAttendance={showAttendance}
+                      attendanceEditable={attendanceEditable}
+                      pending={pendingId === student.student_id}
+                    />
+                  ))}
+                </div>
+              </section>
             );
           })}
         </div>
