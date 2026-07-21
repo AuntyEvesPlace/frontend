@@ -2,91 +2,97 @@ import { Clock3, Clock9, School, Users, Utensils } from "lucide-react";
 import type { AttendanceCounts } from "@/lib/attendance-counts";
 import { cn } from "@/lib/utils";
 
-export type CategoryFilter = "packed_lunch" | "absent_to_school" | null;
+export type CategoryFilter =
+  | "packed_lunch"
+  | "absent_to_school"
+  | "present_am"
+  | "present_pm"
+  | null;
 
-function MetricCard({
+type Tone = "neutral" | "maroon" | "stone" | "pm";
+
+const TONE_IDLE: Record<Tone, string> = {
+  neutral: "text-stone-800",
+  maroon: "text-maroon",
+  stone: "text-stone-700",
+  pm: "text-present-pm",
+};
+
+const TONE_ACTIVE: Record<Tone, string> = {
+  neutral: "border-stone-700 bg-stone-700 text-white shadow-sm",
+  maroon: "border-maroon bg-maroon text-white shadow-sm",
+  stone: "border-stone-700 bg-stone-700 text-white shadow-sm",
+  pm: "border-present-pm bg-present-pm text-white shadow-sm",
+};
+
+/**
+ * One metric tile used across both modes. Static when no onClick is given,
+ * tappable filter when onClick is provided.
+ */
+function StatCard({
   label,
   value,
-  hint,
   icon: Icon,
-  valueClass,
-}: {
-  label: string;
-  value: number;
-  hint?: string;
-  icon: typeof Users;
-  valueClass: string;
-}) {
-  return (
-    <div className="rounded-xl border border-red-100 bg-white px-3 py-3 sm:px-4">
-      <p className={cn("text-4xl font-semibold tabular-nums leading-none sm:text-5xl", valueClass)}>
-        {value}
-      </p>
-      <div className="mt-2 flex items-center gap-1.5">
-        <Icon className={cn("h-4 w-4 shrink-0", valueClass)} aria-hidden />
-        <p className="text-sm font-semibold text-stone-800">{label}</p>
-      </div>
-      {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
-    </div>
-  );
-}
-
-function FilterMetricCard({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  idleValueClass,
+  tone,
   active,
-  activeClass,
   onClick,
 }: {
   label: string;
   value: number;
-  hint: string;
   icon: typeof Users;
-  idleValueClass: string;
-  active: boolean;
-  activeClass: string;
-  onClick: () => void;
+  tone: Tone;
+  active?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      aria-label={
-        active
-          ? `${label}: ${value}. Showing list. Tap to clear.`
-          : `${label}: ${value}. Tap to show list.`
-      }
-      className={cn(
-        "rounded-xl border px-3 py-3 text-left transition-colors active:scale-[0.99] sm:px-4",
-        active
-          ? activeClass
-          : "border-red-100 bg-white hover:border-maroon/40 hover:bg-maroon/[0.03]",
-      )}
-    >
+  const body = (
+    <>
       <p
         className={cn(
-          "text-4xl font-semibold tabular-nums leading-none sm:text-5xl",
-          active ? "text-inherit" : idleValueClass,
+          "text-3xl font-semibold tabular-nums leading-none sm:text-4xl",
+          active ? "text-inherit" : TONE_IDLE[tone],
         )}
       >
         {value}
       </p>
       <div className="mt-2 flex items-center gap-1.5">
         <Icon
-          className={cn("h-4 w-4 shrink-0", active ? "text-inherit" : idleValueClass)}
+          className={cn("h-4 w-4 shrink-0", active ? "text-inherit" : TONE_IDLE[tone])}
           aria-hidden
         />
-        <p className={cn("text-sm font-semibold", active ? "text-inherit" : "text-stone-800")}>
+        <p
+          className={cn(
+            "truncate text-xs font-semibold sm:text-sm",
+            active ? "text-inherit" : "text-stone-800",
+          )}
+        >
           {label}
         </p>
       </div>
-      <p className={cn("mt-0.5 text-xs", active ? "opacity-80" : "text-muted")}>
-        {active ? "Showing list · tap to clear" : hint}
-      </p>
+    </>
+  );
+
+  if (!onClick) {
+    return (
+      <div className="rounded-xl border border-red-100 bg-white px-3 py-3 sm:px-4">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={
+        active ? `${label}: ${value}. Showing list. Tap to clear.` : `${label}: ${value}. Tap to show list.`
+      }
+      className={cn(
+        "rounded-xl border px-3 py-3 text-left transition-colors active:scale-[0.98] sm:px-4",
+        active ? TONE_ACTIVE[tone] : "border-red-100 bg-white hover:border-maroon/40 hover:bg-maroon/[0.03]",
+      )}
+    >
+      {body}
     </button>
   );
 }
@@ -101,39 +107,38 @@ function ClassStatCard({
   isHoliday: boolean;
 }) {
   const shortName = className.replace(/^Standard /, "Std ");
+  const cells = isHoliday
+    ? [
+        { value: counts.present, label: "Here", tone: "maroon" as Tone },
+        { value: counts.am, label: "Before 12", tone: "maroon" as Tone },
+        { value: counts.pm, label: "After 12", tone: "pm" as Tone },
+      ]
+    : [
+        { value: counts.total, label: "Expected", tone: "neutral" as Tone },
+        { value: counts.packedLunch, label: "Lunch", tone: "maroon" as Tone },
+        { value: counts.absentToSchool, label: "No school", tone: "stone" as Tone },
+      ];
+
   return (
     <div className="rounded-xl border border-red-100 bg-white px-3 py-2.5">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-dark-red">{shortName}</p>
-        <p className="shrink-0 text-xs tabular-nums text-muted">
-          <span className="font-semibold text-stone-600">{counts.total}</span> expected
-        </p>
+      <p className="truncate text-xs font-semibold uppercase tracking-wide text-dark-red">
+        {shortName}
+      </p>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {cells.map((cell) => (
+          <div key={cell.label}>
+            <p
+              className={cn(
+                "text-xl font-semibold tabular-nums leading-none sm:text-2xl",
+                TONE_IDLE[cell.tone],
+              )}
+            >
+              {cell.value}
+            </p>
+            <p className="mt-1 truncate text-[11px] font-medium text-stone-600">{cell.label}</p>
+          </div>
+        ))}
       </div>
-
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <div>
-          <p className="text-2xl font-semibold tabular-nums leading-none text-maroon sm:text-3xl">
-            {counts.packedLunch}
-          </p>
-          <p className="mt-1 text-xs font-medium text-stone-600">Lunch</p>
-        </div>
-        <div>
-          <p className="text-2xl font-semibold tabular-nums leading-none text-stone-700 sm:text-3xl">
-            {counts.absentToSchool}
-          </p>
-          <p className="mt-1 text-xs font-medium text-stone-600">No school</p>
-        </div>
-      </div>
-
-      {isHoliday ? (
-        <p className="mt-2 text-xs tabular-nums text-stone-500">
-          <span className="font-semibold text-maroon">{counts.present}</span> here
-          {" · "}
-          <span className="font-semibold text-maroon">{counts.am}</span> before
-          {" · "}
-          <span className="font-semibold text-present-pm">{counts.pm}</span> after
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -155,7 +160,7 @@ export function AttendanceSummary({
   categoryFilter,
   onCategoryFilterChange,
 }: AttendanceSummaryProps) {
-  const toggleCategory = (category: Exclude<CategoryFilter, null>) => {
+  const toggle = (category: Exclude<CategoryFilter, null>) => {
     onCategoryFilterChange(categoryFilter === category ? null : category);
   };
 
@@ -170,127 +175,90 @@ export function AttendanceSummary({
             {isHoliday ? "Holiday · mark who is here" : "School day · lunch and absences"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {isHoliday ? (
-            <span className="rounded-md bg-maroon px-2.5 py-1 text-xs font-semibold text-white">
-              Holiday
-            </span>
-          ) : (
-            <span className="rounded-md bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-700">
-              School day
-            </span>
+        <span
+          className={cn(
+            "rounded-md px-2.5 py-1 text-xs font-semibold",
+            isHoliday ? "bg-maroon text-white" : "bg-stone-100 text-stone-700",
           )}
-          {isToday ? (
-            <span className="rounded-md bg-absent px-2.5 py-1 text-xs font-semibold text-dark-red">
-              Live
-            </span>
-          ) : null}
-        </div>
+        >
+          {isHoliday ? "Holiday" : "School day"}
+        </span>
       </div>
 
-      {isHoliday ? (
-        <section className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-            Who is here
-          </p>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            <MetricCard
-              label="Present"
-              value={totals.present}
-              hint={`of ${totals.total} expected`}
-              icon={Users}
-              valueClass="text-maroon"
-            />
-            <MetricCard
-              label="Before noon"
+      {/* Metrics lead the panel in both modes. First tile is context, other two filter the list. */}
+      <div className="grid grid-cols-3 gap-2.5">
+        {isHoliday ? (
+          <>
+            <StatCard label="Present" value={totals.present} icon={Users} tone="neutral" />
+            <StatCard
+              label="Before 12"
               value={totals.am}
-              hint="Arrived before 12"
               icon={Clock9}
-              valueClass="text-maroon"
+              tone="maroon"
+              active={categoryFilter === "present_am"}
+              onClick={() => toggle("present_am")}
             />
-            <MetricCard
-              label="After noon"
+            <StatCard
+              label="After 12"
               value={totals.pm}
-              hint="Arrived after 12"
               icon={Clock3}
-              valueClass="text-present-pm"
+              tone="pm"
+              active={categoryFilter === "present_pm"}
+              onClick={() => toggle("present_pm")}
+            />
+          </>
+        ) : (
+          <>
+            <StatCard label="Expected" value={totals.total} icon={Users} tone="neutral" />
+            <StatCard
+              label="Packed lunch"
+              value={totals.packedLunch}
+              icon={Utensils}
+              tone="maroon"
+              active={categoryFilter === "packed_lunch"}
+              onClick={() => toggle("packed_lunch")}
+            />
+            <StatCard
+              label="No school"
+              value={totals.absentToSchool}
+              icon={School}
+              tone="stone"
+              active={categoryFilter === "absent_to_school"}
+              onClick={() => toggle("absent_to_school")}
+            />
+          </>
+        )}
+      </div>
+
+      {isHoliday && totals.total > 0 ? (
+        <div className="space-y-1.5">
+          <div
+            className="flex h-2 overflow-hidden rounded-full bg-stone-100"
+            role="progressbar"
+            aria-valuenow={totals.present}
+            aria-valuemin={0}
+            aria-valuemax={totals.total}
+            aria-label={`${totals.am} before noon, ${totals.pm} after noon, of ${totals.total} expected`}
+          >
+            <div
+              className="h-full bg-maroon transition-[width] duration-300"
+              style={{ width: `${(totals.am / totals.total) * 100}%` }}
+            />
+            <div
+              className="h-full bg-present-pm transition-[width] duration-300"
+              style={{ width: `${(totals.pm / totals.total) * 100}%` }}
             />
           </div>
-
-          <div className="space-y-1.5 pt-1">
-            <div
-              className="flex h-2.5 overflow-hidden rounded-full bg-stone-100"
-              role="progressbar"
-              aria-valuenow={totals.present}
-              aria-valuemin={0}
-              aria-valuemax={totals.total}
-              aria-label={`${totals.am} before noon, ${totals.pm} after noon, ${totals.absent} not here, of ${totals.total} expected`}
-            >
-              {totals.total > 0 ? (
-                <>
-                  <div
-                    className="h-full bg-maroon transition-[width] duration-300"
-                    style={{ width: `${(totals.am / totals.total) * 100}%` }}
-                  />
-                  <div
-                    className="h-full bg-present-pm transition-[width] duration-300"
-                    style={{ width: `${(totals.pm / totals.total) * 100}%` }}
-                  />
-                </>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-maroon" aria-hidden />
-                Before noon
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-present-pm" aria-hidden />
-                After noon
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-stone-200" aria-hidden />
-                Not here
-              </span>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-          Tap to see names
-        </p>
-        <div className="grid grid-cols-2 gap-2.5">
-          <FilterMetricCard
-            label="Packed lunch"
-            value={totals.packedLunch}
-            hint="Tap to see names"
-            icon={Utensils}
-            idleValueClass="text-maroon"
-            active={categoryFilter === "packed_lunch"}
-            activeClass="border-maroon bg-maroon text-white shadow-sm"
-            onClick={() => toggleCategory("packed_lunch")}
-          />
-          <FilterMetricCard
-            label="No school"
-            value={totals.absentToSchool}
-            hint="Tap to see names"
-            icon={School}
-            idleValueClass="text-stone-700"
-            active={categoryFilter === "absent_to_school"}
-            activeClass="border-stone-700 bg-stone-700 text-white shadow-sm"
-            onClick={() => toggleCategory("absent_to_school")}
-          />
+          <p className="text-xs tabular-nums text-muted">
+            {totals.present} of {totals.total} here
+          </p>
         </div>
-      </section>
+      ) : null}
 
       {byClass.length > 0 ? (
         <section className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-            By class
-          </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">By class</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {byClass.map(({ className, counts }) => (
               <ClassStatCard
                 key={className}

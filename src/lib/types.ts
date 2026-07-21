@@ -9,6 +9,7 @@ export interface Teacher {
   active: boolean;
   created_at: string;
   last_login_at: string | null;
+  can_manage_roles?: boolean;
 }
 
 export interface Student {
@@ -28,7 +29,8 @@ export interface MarkedBy {
 export type AttendanceLogEvent =
   | "status"
   | "needs_packed_lunch"
-  | "absent_to_school";
+  | "absent_to_school"
+  | "packed_lunch_recurrence";
 
 export interface AttendanceStudent {
   student_id: string;
@@ -36,6 +38,7 @@ export interface AttendanceStudent {
   class_name: string;
   status: AttendanceStatus;
   needs_packed_lunch: boolean;
+  packed_lunch_recurring?: boolean;
   absent_to_school: boolean;
   marked_by: MarkedBy | null;
   marked_at: string | null;
@@ -56,7 +59,7 @@ export interface AttendanceLog {
   teacher_name: string;
   event_type: AttendanceLogEvent;
   status: AttendanceStatus | null;
-  flag_value: boolean | null;
+  flag_value: boolean | number | null;
   created_at: string;
   message: string;
 }

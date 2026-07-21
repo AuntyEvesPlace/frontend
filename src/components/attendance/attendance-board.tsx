@@ -34,6 +34,8 @@ const TEACHER_FLAG_AHEAD_DAYS = 30;
 const CATEGORY_LABELS: Record<Exclude<CategoryFilter, null>, string> = {
   packed_lunch: "Packed lunch",
   absent_to_school: "No school",
+  present_am: "Before 12",
+  present_pm: "After 12",
 };
 
 interface AttendanceBoardProps {
@@ -59,6 +61,12 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
   const isHoliday = Boolean(data?.is_holiday);
   const attendanceEditable = isHoliday && (isAdmin || isToday);
   const showAttendance = isHoliday;
+
+  // Reset the category filter on any mode change so a school-day filter
+  // never carries into holiday mode (or vice versa).
+  useEffect(() => {
+    setCategoryFilter(null);
+  }, [isHoliday]);
 
   const load = useCallback(async (targetDate: string) => {
     setLoading(true);
@@ -87,7 +95,9 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
           ? true
           : categoryFilter === "packed_lunch"
             ? s.needs_packed_lunch
-            : s.absent_to_school;
+            : categoryFilter === "absent_to_school"
+              ? s.absent_to_school
+              : s.status === categoryFilter;
       return matchesSearch && matchesClass && matchesCategory;
     });
   }, [data, search, classFilter, categoryFilter]);
@@ -126,13 +136,18 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
   };
 
   const emptyDescription = (() => {
+    const suffix = search || classFilter !== "all" ? " for the current search/class." : ".";
     if (categoryFilter === "packed_lunch") {
-      return "No children need packed lunch"
-        + (search || classFilter !== "all" ? " for the current search/class." : ".");
+      return "No children need packed lunch" + suffix;
     }
     if (categoryFilter === "absent_to_school") {
-      return "No children are marked out of school"
-        + (search || classFilter !== "all" ? " for the current search/class." : ".");
+      return "No children are marked out of school" + suffix;
+    }
+    if (categoryFilter === "present_am") {
+      return "No children marked before 12" + suffix;
+    }
+    if (categoryFilter === "present_pm") {
+      return "No children marked after 12" + suffix;
     }
     return "Try a different name or class filter.";
   })();
@@ -344,9 +359,11 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
               {categoryFilter ? (
                 <span
                   className={
-                    categoryFilter === "packed_lunch"
-                      ? "rounded-full bg-maroon/10 px-2.5 py-0.5 text-xs font-semibold text-maroon"
-                      : "rounded-full bg-stone-200 px-2.5 py-0.5 text-xs font-semibold text-stone-700"
+                    categoryFilter === "absent_to_school"
+                      ? "rounded-full bg-stone-200 px-2.5 py-0.5 text-xs font-semibold text-stone-700"
+                      : categoryFilter === "present_pm"
+                        ? "rounded-full bg-present-pm/15 px-2.5 py-0.5 text-xs font-semibold text-present-pm"
+                        : "rounded-full bg-maroon/10 px-2.5 py-0.5 text-xs font-semibold text-maroon"
                   }
                 >
                   {CATEGORY_LABELS[categoryFilter]}
@@ -401,26 +418,28 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
                       {students.length} {students.length === 1 ? "child" : "children"}
                     </span>
                   </div>
-                  {classCounts && showAttendance && !categoryFilter ? (
-                    <p className="text-sm tabular-nums text-stone-600">
-                      <span className="font-semibold text-maroon">{classCounts.present}</span>{" "}
-                      present
-                      {" · "}
-                      <span className="font-medium text-maroon">{classCounts.am}</span> before
-                      12
-                      {" · "}
-                      <span className="font-medium text-present-pm">{classCounts.pm}</span>{" "}
-                      after 12
-                      {classCounts.absentToSchool > 0 ? (
-                        <>
-                          {" · "}
-                          <span className="font-medium text-stone-500">
-                            {classCounts.absentToSchool}
-                          </span>{" "}
-                          no school
-                        </>
-                      ) : null}
-                    </p>
+                  {classCounts && !categoryFilter ? (
+                    isHoliday ? (
+                      <p className="text-sm tabular-nums text-stone-600">
+                        <span className="font-semibold text-maroon">{classCounts.present}</span>{" "}
+                        present
+                        {" · "}
+                        <span className="font-medium text-maroon">{classCounts.am}</span> before 12
+                        {" · "}
+                        <span className="font-medium text-present-pm">{classCounts.pm}</span> after
+                        12
+                      </p>
+                    ) : classCounts.packedLunch > 0 || classCounts.absentToSchool > 0 ? (
+                      <p className="text-sm tabular-nums text-stone-600">
+                        <span className="font-semibold text-maroon">{classCounts.packedLunch}</span>{" "}
+                        packed lunch
+                        {" · "}
+                        <span className="font-medium text-stone-500">
+                          {classCounts.absentToSchool}
+                        </span>{" "}
+                        no school
+                      </p>
+                    ) : null
                   ) : null}
                 </div>
                 <div className="grid gap-3">

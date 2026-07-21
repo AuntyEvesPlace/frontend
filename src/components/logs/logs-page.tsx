@@ -23,6 +23,13 @@ function LogIcon({ log }: { log: AttendanceLog }) {
       </div>
     );
   }
+  if (eventType === "packed_lunch_recurrence") {
+    return (
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-maroon/10 text-maroon">
+        <Utensils className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
   if (eventType === "absent_to_school") {
     return (
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-stone-200 text-stone-600">
@@ -54,6 +61,11 @@ function LogIcon({ log }: { log: AttendanceLog }) {
 
 function LogMessage({ log }: { log: AttendanceLog }) {
   const eventType: AttendanceLogEvent = log.event_type ?? "status";
+  if (eventType === "packed_lunch_recurrence") {
+    return (
+      <p className="min-w-0 flex-1 text-sm leading-snug text-stone-800">{log.message}</p>
+    );
+  }
   if (eventType !== "status") {
     return (
       <p className="min-w-0 flex-1 text-sm leading-snug text-stone-800">
