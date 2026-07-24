@@ -64,6 +64,18 @@ export interface AttendanceLog {
   message: string;
 }
 
+export interface PackedLunchRecurrence {
+  id: string;
+  student_id: string;
+  student_name: string;
+  class_name: string;
+  weekday: number;
+  name: string;
+  active: boolean;
+  created_at: string;
+  deactivated_at: string | null;
+}
+
 export interface TokenResponse {
   access_token: string;
   refresh_token: string;

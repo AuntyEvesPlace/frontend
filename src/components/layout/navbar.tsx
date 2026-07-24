@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 const navItems: { href: string; label: string; adminOnly?: boolean }[] = [
   { href: "/attendance", label: "Attendance" },
+  { href: "/calendar", label: "Calendar" },
   { href: "/students", label: "Students", adminOnly: true },
   { href: "/teachers", label: "Teachers", adminOnly: true },
   { href: "/logs", label: "Logs", adminOnly: true },

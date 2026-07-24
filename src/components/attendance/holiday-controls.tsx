@@ -31,6 +31,8 @@ interface HolidayControlsProps {
   date: string;
   isHoliday: boolean;
   isAdmin: boolean;
+  /** When false, only the range dialog is shown (no single-day toggle). */
+  allowDayToggle?: boolean;
   onHolidayChange: (isHoliday: boolean) => void;
   onError: (message: string) => void;
 }
@@ -39,6 +41,7 @@ export function HolidayControls({
   date,
   isHoliday,
   isAdmin,
+  allowDayToggle = true,
   onHolidayChange,
   onError,
 }: HolidayControlsProps) {
@@ -101,20 +104,22 @@ export function HolidayControls({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={pending}
-          aria-pressed={isHoliday}
-          onClick={toggleHoliday}
-          className={cn(
-            "inline-flex h-9 items-center rounded-full border px-3 text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-60",
-            isHoliday
-              ? "border-maroon bg-maroon text-white"
-              : "border-border bg-white text-stone-600 hover:bg-stone-50",
-          )}
-        >
-          {isHoliday ? "Holiday on" : "Holiday off"}
-        </button>
+        {allowDayToggle ? (
+          <button
+            type="button"
+            disabled={pending}
+            aria-pressed={isHoliday}
+            onClick={toggleHoliday}
+            className={cn(
+              "inline-flex h-9 items-center rounded-full border px-3 text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-60",
+              isHoliday
+                ? "border-maroon bg-maroon text-white"
+                : "border-border bg-white text-stone-600 hover:bg-stone-50",
+            )}
+          >
+            {isHoliday ? "Holiday on" : "Holiday off"}
+          </button>
+        ) : null}
         <Button
           type="button"
           variant="secondary"

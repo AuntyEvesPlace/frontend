@@ -7,7 +7,6 @@ import {
   AttendanceSummary,
   type CategoryFilter,
 } from "@/components/attendance/attendance-summary";
-import { HolidayControls } from "@/components/attendance/holiday-controls";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -268,20 +267,6 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
               : "School day: packed lunch and absent to school."
         }
       />
-
-      {(isAdmin || (!loading && data)) && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <HolidayControls
-            date={date}
-            isHoliday={isHoliday}
-            isAdmin={isAdmin}
-            onHolidayChange={(next) => {
-              setData((prev) => (prev ? { ...prev, is_holiday: next } : prev));
-            }}
-            onError={setError}
-          />
-        </div>
-      )}
 
       {!loading && data && data.students.length > 0 ? (
         <AttendanceSummary
