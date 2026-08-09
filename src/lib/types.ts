@@ -1,15 +1,23 @@
 export type TeacherRole = "admin" | "teacher";
+export type TeacherAuthMode = "oauth" | "local";
 export type AttendanceStatus = "absent" | "present_am" | "present_pm";
 
 export interface Teacher {
   id: string;
-  email: string;
+  email: string | null;
+  username?: string | null;
+  auth_mode?: TeacherAuthMode;
   name: string;
   role: TeacherRole;
   active: boolean;
   created_at: string;
   last_login_at: string | null;
   can_manage_roles?: boolean;
+}
+
+export interface TeacherWithCredentials {
+  teacher: Teacher;
+  generated_password: string | null;
 }
 
 export interface Student {

@@ -77,7 +77,14 @@ export async function api<T>(
     let message = "Request failed";
     try {
       const err = await res.json();
-      message = err.detail ?? message;
+      if (typeof err.detail === "string") {
+        message = err.detail;
+      } else if (Array.isArray(err.detail)) {
+        message = err.detail
+          .map((item: { msg?: string }) => item.msg)
+          .filter(Boolean)
+          .join("; ") || message;
+      }
     } catch {
       // ignore
     }
