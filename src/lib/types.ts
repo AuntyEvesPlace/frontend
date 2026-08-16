@@ -78,7 +78,6 @@ export interface PackedLunchRecurrence {
   student_name: string;
   class_name: string;
   weekday: number;
-  name: string;
   active: boolean;
   created_at: string;
   deactivated_at: string | null;

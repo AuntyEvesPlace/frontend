@@ -86,8 +86,8 @@ export function CalendarPage() {
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const [addOpen, setAddOpen] = useState(false);
-  const [addName, setAddName] = useState("");
   const [addStudentId, setAddStudentId] = useState("");
+  const [addStudentQuery, setAddStudentQuery] = useState("");
   const [addWeekday, setAddWeekday] = useState("0");
   const [addWeekdayLocked, setAddWeekdayLocked] = useState(false);
   const [addError, setAddError] = useState("");
@@ -160,12 +160,36 @@ export function CalendarPage() {
       .filter((r) => r.weekday === selectedWeekday)
       .sort(
         (a, b) =>
-          a.name.localeCompare(b.name) ||
-          (a.class_name === b.class_name
-            ? a.student_name.localeCompare(b.student_name)
-            : a.class_name.localeCompare(b.class_name)),
+          a.class_name.localeCompare(b.class_name) ||
+          a.student_name.localeCompare(b.student_name),
       );
   }, [rules, selectedWeekday]);
+
+  const eligibleStudents = useMemo(() => {
+    const weekday = Number(addWeekday);
+    const taken = new Set(
+      rules.filter((r) => r.weekday === weekday).map((r) => r.student_id),
+    );
+    return students
+      .filter((s) => !taken.has(s.id))
+      .sort(
+        (a, b) =>
+          a.class_name.localeCompare(b.class_name) || a.name.localeCompare(b.name),
+      );
+  }, [students, rules, addWeekday]);
+
+  const filteredStudents = useMemo(() => {
+    const query = addStudentQuery.trim().toLowerCase();
+    if (!query) return eligibleStudents;
+    return eligibleStudents.filter((s) => s.name.toLowerCase().includes(query));
+  }, [eligibleStudents, addStudentQuery]);
+
+  useEffect(() => {
+    if (!addStudentId) return;
+    if (!eligibleStudents.some((s) => s.id === addStudentId)) {
+      setAddStudentId("");
+    }
+  }, [addStudentId, eligibleStudents]);
 
   const calendarCells = useMemo(() => {
     const totalDays = daysInMonth(viewYear, viewMonth);
@@ -199,8 +223,8 @@ export function CalendarPage() {
 
   const openAdd = (opts?: { lockWeekday?: boolean }) => {
     const lockWeekday = Boolean(opts?.lockWeekday && selectedWeekday !== null);
-    setAddName("");
-    setAddStudentId(students[0]?.id ?? "");
+    setAddStudentId("");
+    setAddStudentQuery("");
     setAddWeekday(lockWeekday ? String(selectedWeekday) : "0");
     setAddWeekdayLocked(lockWeekday);
     setAddError("");
@@ -208,11 +232,6 @@ export function CalendarPage() {
   };
 
   const saveRule = async () => {
-    const name = addName.trim();
-    if (!name) {
-      setAddError("Enter a rule name");
-      return;
-    }
     if (!addStudentId) {
       setAddError("Pick a student");
       return;
@@ -223,7 +242,6 @@ export function CalendarPage() {
       await api<PackedLunchRecurrence>("/api/v1/packed-lunch-recurrences", {
         method: "POST",
         body: JSON.stringify({
-          name,
           student_id: addStudentId,
           weekday: Number(addWeekday),
         }),
@@ -451,10 +469,10 @@ export function CalendarPage() {
                       >
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-stone-900">
-                            {rule.name}
+                            {rule.student_name}
                           </p>
                           <p className="truncate text-sm text-muted">
-                            {rule.student_name} · {rule.class_name}
+                            {rule.class_name}
                           </p>
                         </div>
                         {isAdmin ? (
@@ -506,30 +524,45 @@ export function CalendarPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="lunch-rule-name">Rule name</Label>
+                <Label htmlFor="lunch-rule-student">Student</Label>
                 <Input
-                  id="lunch-rule-name"
-                  value={addName}
-                  onChange={(e) => setAddName(e.target.value)}
-                  placeholder="e.g. Alex Tuesday lunch"
-                  maxLength={120}
+                  id="lunch-rule-student"
+                  value={addStudentQuery}
+                  onChange={(e) => setAddStudentQuery(e.target.value)}
+                  placeholder="Search by name…"
+                  autoComplete="off"
                   autoFocus
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lunch-rule-student">Student</Label>
-                <Select value={addStudentId} onValueChange={setAddStudentId}>
-                  <SelectTrigger id="lunch-rule-student">
-                    <SelectValue placeholder="Select student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name} ({s.class_name})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ul className="max-h-48 overflow-y-auto rounded-lg border border-border">
+                  {filteredStudents.length === 0 ? (
+                    <li className="px-3 py-2 text-sm text-muted">
+                      No matching students
+                    </li>
+                  ) : (
+                    filteredStudents.map((student) => {
+                      const selected = student.id === addStudentId;
+                      return (
+                        <li key={student.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddStudentId(student.id);
+                              setAddStudentQuery("");
+                            }}
+                            className={cn(
+                              "flex w-full items-center px-3 py-2 text-left text-sm",
+                              selected
+                                ? "bg-maroon/10 font-semibold text-maroon"
+                                : "text-stone-800 hover:bg-maroon/5",
+                            )}
+                          >
+                            {student.name} ({student.class_name})
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
               </div>
               {addWeekdayLocked ? (
                 <p className="text-sm text-muted">
@@ -562,7 +595,11 @@ export function CalendarPage() {
                 >
                   Close
                 </Button>
-                <Button type="button" onClick={saveRule} disabled={addSaving}>
+                <Button
+                  type="button"
+                  onClick={saveRule}
+                  disabled={addSaving || !addStudentId}
+                >
                   Save
                 </Button>
               </div>
