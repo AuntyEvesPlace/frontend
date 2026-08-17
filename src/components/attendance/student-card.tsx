@@ -101,7 +101,7 @@ export function StudentCard({
 
   const subtitle = !showAttendance
     ? locked
-      ? "Out of school today"
+      ? "No lunch today"
       : student.marked_by
         ? `Marked by ${student.marked_by.name} at ${formatTime(student.marked_at)}`
         : "Not marked yet"
@@ -169,7 +169,7 @@ export function StudentCard({
             type="button"
             disabled={pending}
             aria-pressed={student.absent_to_school}
-            title="No school"
+            title="No lunch"
             onClick={() => {
               if (pending) return;
               onFlagChange(
@@ -184,7 +184,7 @@ export function StudentCard({
             )}
           >
             <School className="h-5 w-5 shrink-0" aria-hidden />
-            <span className="whitespace-nowrap">No school</span>
+            <span className="whitespace-nowrap">No lunch</span>
           </button>
         </div>
       ) : (

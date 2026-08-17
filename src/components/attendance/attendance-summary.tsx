@@ -116,7 +116,7 @@ function ClassStatCard({
     : [
         { value: counts.total, label: "Expected", tone: "neutral" as Tone },
         { value: counts.packedLunch, label: "Lunch", tone: "maroon" as Tone },
-        { value: counts.absentToSchool, label: "No school", tone: "stone" as Tone },
+        { value: counts.absentToSchool, label: "No lunch", tone: "stone" as Tone },
       ];
 
   return (
@@ -219,7 +219,7 @@ export function AttendanceSummary({
               onClick={() => toggle("packed_lunch")}
             />
             <StatCard
-              label="No school"
+              label="No lunch"
               value={totals.absentToSchool}
               icon={School}
               tone="stone"

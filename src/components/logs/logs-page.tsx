@@ -75,8 +75,8 @@ function LogMessage({ log }: { log: AttendanceLog }) {
             ? " set packed lunch for "
             : " cleared packed lunch for "
           : log.flag_value
-            ? " marked absent to school for "
-            : " cleared absent to school for "}
+            ? " marked no lunch for "
+            : " cleared no lunch for "}
         {log.student_name}
       </p>
     );

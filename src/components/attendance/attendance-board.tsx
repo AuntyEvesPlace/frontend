@@ -32,7 +32,7 @@ const TEACHER_FLAG_AHEAD_DAYS = 30;
 
 const CATEGORY_LABELS: Record<Exclude<CategoryFilter, null>, string> = {
   packed_lunch: "Packed lunch",
-  absent_to_school: "No school",
+  absent_to_school: "No lunch",
   present_am: "Before 12",
   present_pm: "After 12",
 };
@@ -140,7 +140,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
       return "No children need packed lunch" + suffix;
     }
     if (categoryFilter === "absent_to_school") {
-      return "No children are marked out of school" + suffix;
+      return "No children are marked no lunch" + suffix;
     }
     if (categoryFilter === "present_am") {
       return "No children marked before 12" + suffix;
@@ -260,11 +260,11 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
             ? isAdmin
               ? "Viewing another day. Changes only apply to this date."
               : isHoliday
-                ? "Planning ahead. Set packed lunch or absent to school; mark arrival on the day."
-                : "Planning ahead. Set packed lunch or absent to school."
+                ? "Planning ahead. Set packed lunch or no lunch; mark arrival on the day."
+                : "Planning ahead. Set packed lunch or no lunch."
             : isHoliday
               ? "Holiday mode: mark before/after 12 attendance."
-              : "School day: packed lunch and absent to school."
+              : "School day: packed lunch and no lunch."
         }
       />
 
@@ -422,7 +422,7 @@ export function AttendanceBoard({ isAdmin }: AttendanceBoardProps) {
                         <span className="font-medium text-stone-500">
                           {classCounts.absentToSchool}
                         </span>{" "}
-                        no school
+                        no lunch
                       </p>
                     ) : null
                   ) : null}

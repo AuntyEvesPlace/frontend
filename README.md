@@ -7,7 +7,7 @@ Next.js dashboard for daycare attendance.
 - Next.js 15 (App Router) + TypeScript
 - Tailwind CSS + shadcn-style components
 - Lucide icons · Framer Motion
-- JWT auth via backend Google OAuth
+- JWT auth via backend local login or Google / Microsoft / Yahoo OAuth
 
 ## Local setup
 
@@ -37,16 +37,27 @@ CORS_ORIGINS=http://localhost:3000
 
 OAuth callback redirects to `/auth/callback` with tokens, which are stored in `localStorage` and immediately stripped from the URL.
 
+Username/password login posts to `POST /api/v1/auth/login` and stores the same JWT pair.
+
 ## Pages
 
 | Route | Access |
 |-------|--------|
-| `/login` | Public |
+| `/login` | Public — username/password form, then OAuth buttons |
 | `/auth/callback` | OAuth return |
-| `/attendance` | All staff |
+| `/attendance` | All staff — mark today; packed lunch here is one day only |
+| `/calendar` | All staff — teachers read-only; admins edit holidays and weekly lunch rules |
 | `/students` | Admin |
-| `/teachers` | Admin |
+| `/teachers` | Admin — invite by email (OAuth) or username (generated password once); reset local passwords |
 | `/logs` | Admin |
+
+`/lunch-rules` redirects to `/calendar`.
+
+## Attendance and calendar
+
+**School days** show before/after 12, absent, packed lunch, and no lunch. **Holidays** hide packed lunch and no lunch; before/after 12 and absent stay.
+
+Weekly packed-lunch rules are created on Calendar (search student by name, pick a weekday). Cancelling a rule from Calendar stops future weeks; unmarking lunch on Attendance only changes that calendar day.
 
 ## Deploy (Vercel)
 
